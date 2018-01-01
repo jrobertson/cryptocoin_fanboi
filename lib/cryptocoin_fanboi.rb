@@ -8,13 +8,15 @@ require 'table-formatter'
 
 
 class CryptocoinFanboi
+  
+  attr_reader :coins
 
   def initialize(watch: [])
 
     @watch = watch.map(&:upcase)
     
     @tfo = TableFormatter.new
-    @tfo.labels = %w(Name USD BTC) + ['% 24hr:', '% 1 week:']
+    @tfo.labels = %w(Name USD BTC) + ['% 1hr:', '% 24hr:', '% 1 week:']
     @coins = fetch_coinlist(watch: @watch)
 
   end
@@ -29,8 +31,8 @@ class CryptocoinFanboi
         
     coins = fetch_coinlist(limit: limit, watch: @watch).map do |coin|
 
-      %w(name price_usd price_btc percent_change_24h percent_change_7d)\
-        .map {|x| coin[x] }
+      %w(name price_usd price_btc percent_change_1h 
+          percent_change_24h percent_change_7d).map {|x| coin[x] }
 
     end
 
