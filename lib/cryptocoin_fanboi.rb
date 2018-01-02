@@ -3,6 +3,7 @@
 # file: cryptocoin_fanboi.rb
 
 
+require 'colored'
 require 'coinmarketcap'
 require 'table-formatter'
 
@@ -10,9 +11,11 @@ require 'table-formatter'
 class CryptocoinFanboi
   
   attr_reader :coins
+  attr_accessor :colored
 
-  def initialize(watch: [])
+  def initialize(watch: [], colored: true)
 
+    @colored = colored
     @watch = watch.map(&:upcase)
         
     @fields = %w(rank name price_usd price_btc percent_change_1h 
@@ -33,18 +36,17 @@ class CryptocoinFanboi
   # View the coins with the largest gains in the past hour
   #  
   def now(limit: 5, markdown: false)
-
-    TableFormatter.new(source: top_coins('1h', limit: limit), 
-                       labels: @labels, markdown: markdown).display    
+    
+    build_table top_coins('1h', limit: limit), markdown: markdown
+    
   end    
 
   # View the coins with the largest gains this week (past 7 days)
   #  
   def this_week(limit: 5, markdown: false)    
     
-    TableFormatter.new(source: top_coins(limit: limit), 
-                       labels: @labels, markdown: markdown).display    
-    #top_coins(limit: limit)
+    build_table top_coins(limit: limit), markdown: markdown
+
   end
   
   alias week this_week
@@ -53,8 +55,8 @@ class CryptocoinFanboi
   #
   def today(limit: 5, markdown: false)
     
-    TableFormatter.new(source: top_coins('24h', limit: limit), 
-                       labels: @labels, markdown: markdown).display        
+    build_table top_coins('24h', limit: limit), markdown: markdown
+    
   end      
 
   def to_s(limit: nil, markdown: false, watch: @watch)
@@ -65,11 +67,32 @@ class CryptocoinFanboi
 
     end
 
-    TableFormatter.new(source: coins, labels: @labels, markdown: markdown).display
+    build_table coins, markdown: markdown
 
   end
 
   private
+  
+  def build_table(coins, markdown: markdown)
+
+    s = TableFormatter.new(source: coins, labels: @labels, markdown: markdown)\
+        .display
+    
+    return s if @colored == false
+    
+    a = s.lines
+    
+    body = a[3..-2].map do |line|
+      
+      fields = line.split('|')         
+      a2 = fields[5..-2].map {|x| x[/^ +-/] ? x.red : x.green }            
+      (fields[0..4] + a2 + ["\n"]).join('|')  
+
+    end
+    
+    (a[0..2] + body + [a[-1]]).join
+    
+  end
 
   def fetch_coinlist(limit: nil, watch: [])
 
