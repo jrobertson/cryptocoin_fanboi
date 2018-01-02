@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'cryptocoin_fanboi'
-  s.version = '0.1.2'
+  s.version = '0.1.3'
   s.summary = 'A coinmarketcap wrapper which makes it convenient to display the top 5 crypto currencies as listed on https://coinmarketcap.com.'
   s.authors = ['James Robertson']
   s.files = Dir['lib/cryptocoin_fanboi.rb']

@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# file: cryptocoin_fanboi
+# file: cryptocoin_fanboi.rb
 
 
 require 'coinmarketcap'
@@ -14,9 +14,11 @@ class CryptocoinFanboi
   def initialize(watch: [])
 
     @watch = watch.map(&:upcase)
-    
-    @tfo = TableFormatter.new
-    @tfo.labels = %w(Name USD BTC) + ['% 1hr:', '% 24hr:', '% 1 week:']
+        
+    @fields = %w(rank name price_usd price_btc percent_change_1h 
+          percent_change_24h percent_change_7d)
+          
+    @labels = %w(Rank Name USD BTC) + ['% 1hr:', '% 24hr:', '% 1 week:']
     @coins = fetch_coinlist(watch: @watch)
 
   end
@@ -27,17 +29,43 @@ class CryptocoinFanboi
   
   alias abbreviations coin_abbreviations
 
-  def to_s(limit: nil, markdown: false)
-        
-    coins = fetch_coinlist(limit: limit, watch: @watch).map do |coin|
 
-      %w(name price_usd price_btc percent_change_1h 
-          percent_change_24h percent_change_7d).map {|x| coin[x] }
+  # View the coins with the largest gains in the past hour
+  #  
+  def now(limit: 5, markdown: false)
+
+    TableFormatter.new(source: top_coins('1h', limit: limit), 
+                       labels: @labels, markdown: markdown).display    
+  end    
+
+  # View the coins with the largest gains this week (past 7 days)
+  #  
+  def this_week(limit: 5, markdown: false)    
+    
+    TableFormatter.new(source: top_coins(limit: limit), 
+                       labels: @labels, markdown: markdown).display    
+    #top_coins(limit: limit)
+  end
+  
+  alias week this_week
+  
+  # View the coins with the largest gains today (past 24 hours)
+  #
+  def today(limit: 5, markdown: false)
+    
+    TableFormatter.new(source: top_coins('24h', limit: limit), 
+                       labels: @labels, markdown: markdown).display        
+  end      
+
+  def to_s(limit: nil, markdown: false, watch: @watch)
+        
+    coins = fetch_coinlist(limit: limit, watch: watch).map do |coin|
+
+      @fields.map {|x| coin[x] }
 
     end
 
-    @tfo.source = coins
-    @tfo.display markdown: markdown
+    TableFormatter.new(source: coins, labels: @labels, markdown: markdown).display
 
   end
 
@@ -50,6 +78,12 @@ class CryptocoinFanboi
     limit ? coins.take(limit) : coins
     
   end
+  
+  def top_coins(period='7d', limit: 5)
+    
+    @coins.sort_by {|x| -x['percent_change_' + period].to_f}.take(limit).map \
+        {|coin| @fields.map {|x| coin[x] }}
+  end  
 
 end
 
