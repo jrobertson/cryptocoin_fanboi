@@ -38,9 +38,10 @@ class CryptocoinFanboi
       
       #load the file
       h = Psych.load File.read(cache_filename)
-
-      @growth = (h.keys.first == @year.to_i) ? h[@year.to_i] : fetch_growth(@all_coins)
-      
+      puts 'h.key.first: ' + h.keys.first.inspect if @debug
+      puts '@year: ' + @year.inspect if @debug
+      @growth = (h.keys.first == @year) ? h[@year] : fetch_growth(@all_coins)
+      puts '@growth: ' + @growth.inspect if @debug
     else
       
       # fetch the currency prices from the start of the year
