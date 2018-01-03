@@ -3,6 +3,7 @@
 # file: cryptocoin_fanboi.rb
 
 
+require 'psych'
 require 'colored'
 require 'coinmarketcap'
 require 'table-formatter'
@@ -10,20 +11,44 @@ require 'table-formatter'
 
 class CryptocoinFanboi
   
-  attr_reader :coins
+  attr_reader :coins, :all_coins
   attr_accessor :colored
 
-  def initialize(watch: [], colored: true)
+  def initialize(watch: [], ignore: [], colored: true, debug: false)
 
-    @colored = colored
-    @watch = watch.map(&:upcase)
+    @colored, @debug = colored, debug
+    @watch= watch.map(&:upcase)
+    @ignore = ignore.map(&:upcase)
         
     @fields = %w(rank name price_usd price_btc percent_change_1h 
           percent_change_24h percent_change_7d)
-          
-    @labels = %w(Rank Name USD BTC) + ['% 1hr:', '% 24hr:', '% 1 week:']
-    @coins = fetch_coinlist(watch: @watch)
 
+    @year = Time.now.year.to_s          
+    @labels = %w(Rank Name USD BTC) + ['% 1hr:', '% 24hr:', 
+                                       '% 1 week:', '% ' + @year + ':']
+    @coins = fetch_coinlist()
+
+    
+    # check for the local cache file containing a record of currency 
+    # prices from the start of the year
+    
+    cache_filename = 'cryptocoin_fanboi.yaml'    
+    
+    if File.exists? cache_filename then
+      
+      #load the file
+      h = Psych.load File.read(cache_filename)
+
+      @growth = (h.keys.first == @year.to_i) ? h[@year.to_i] : fetch_growth(@all_coins)
+      
+    else
+      
+      # fetch the currency prices from the start of the year
+      @growth = fetch_growth(@all_coins)      
+      File.write cache_filename, {@year => @growth}.to_yaml
+      
+    end
+    
   end
   
   def coin_abbreviations()
@@ -59,9 +84,9 @@ class CryptocoinFanboi
     
   end      
 
-  def to_s(limit: nil, markdown: false, watch: @watch)
+  def to_s(limit: nil, markdown: false)
         
-    coins = fetch_coinlist(limit: limit, watch: watch).map do |coin|
+    coins = fetch_coinlist(limit: limit).map do |coin|
 
       @fields.map {|x| coin[x] }
 
@@ -73,8 +98,13 @@ class CryptocoinFanboi
 
   private
   
-  def build_table(coins, markdown: markdown)
-
+  def build_table(a, markdown: markdown)
+        
+    coins = a.map do |x|
+      @growth.has_key?(x[1]) ? x + [@growth[x[1]].to_s] : x
+    end
+    
+    puts 'coins: ' + coins.inspect if @debug
     s = TableFormatter.new(source: coins, labels: @labels, markdown: markdown)\
         .display
     
@@ -94,11 +124,46 @@ class CryptocoinFanboi
     
   end
 
-  def fetch_coinlist(limit: nil, watch: [])
+  def fetch_coinlist(limit: nil)
 
-    a = JSON.parse(Coinmarketcap.coins.body)    
-    coins = watch.any? ? a.select {|x| watch.include? x['symbol']} : a    
-    limit ? coins.take(limit) : coins
+    @all_coins = JSON.parse(Coinmarketcap.coins.body)    
+    
+    a = if @watch.any? then
+      @all_coins.select {|x| @watch.include? x['symbol']}
+    elsif @ignore.any?
+      @all_coins.reject {|x| @ignore.include? x['symbol']}
+    else
+      @all_coins    
+    end    
+
+    limit ? a.take(limit) : a
+    
+  end
+
+  # fetch the currency prices from the start of the year 
+  #
+  def fetch_growth(coins)
+
+    puts 'fetching growth ...' if @debug
+    
+    coins.inject({}) do |r, x| 
+
+      day1 = @year + '0101'
+      puts 'x: ' + x['name'].inspect if @debug
+      begin
+        a = Coinmarketcap.get_historical_price(x['name'].gsub(/ /,'-'), day1, day1)
+      rescue
+        puts 'warning : ' + x['name'].inspect + ' ' + ($!).inspect        
+      end
+
+      if a and a.any? then
+        latest_day, year_start = x['price_usd'].to_f, a[0][:close]
+        r.merge({x['name'] => (latest_day / year_start).round(2)})
+      else
+        r
+      end
+      
+    end
     
   end
   
