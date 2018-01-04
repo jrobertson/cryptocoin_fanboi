@@ -152,14 +152,16 @@ class CryptocoinFanboi
       day1 = @year + '0101'
       puts 'x: ' + x['name'].inspect if @debug
       begin
-        a = Coinmarketcap.get_historical_price(x['name'].gsub(/ /,'-'), day1, day1)
+        a = Coinmarketcap.get_historical_price(x['name'].gsub(/ /,'-'), 
+                                               day1, day1)
       rescue
         puts 'warning : ' + x['name'].inspect + ' ' + ($!).inspect        
       end
 
       if a and a.any? then
         latest_day, year_start = x['price_usd'].to_f, a[0][:close]
-        r.merge({x['name'] => (latest_day / year_start).round(2)})
+        r.merge({x['name'] => (100.0 / (year_start / 
+                                        (latest_day - year_start))).round(2)})
       else
         r
       end
