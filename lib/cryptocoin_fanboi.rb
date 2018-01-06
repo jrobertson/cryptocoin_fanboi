@@ -116,6 +116,26 @@ class CryptocoinFanboi
   
   alias hour now
   alias last_hour now
+  
+  # returns closing price in dollars
+  # e.g.  price('tron', '8th September 2017') #=> 0.001427
+  #
+  def price(coin, raw_date)
+    
+    date = Chronic.parse(raw_date).strftime("%Y%m%d")
+    puts 'date: ' + date.inspect if @debug
+    
+    begin
+      
+      a = Coinmarketcap.get_historical_price(coin, date, date)
+      puts 'a: ' + a.inspect if @debug
+      r = a.first[:close]
+      
+    rescue
+      puts ($!).inspect if @debug
+    end
+    
+  end
 
   # View the coins with the largest gains this week (past 7 days)
   #  

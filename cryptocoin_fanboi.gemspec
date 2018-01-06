@@ -1,11 +1,12 @@
 Gem::Specification.new do |s|
   s.name = 'cryptocoin_fanboi'
-  s.version = '0.2.5'
+  s.version = '0.3.0'
   s.summary = 'A coinmarketcap wrapper which makes it convenient to display ' +
       'the top 5 cryptocurrencies as listed on https://coinmarketcap.com.'
   s.authors = ['James Robertson']
   s.files = Dir['lib/cryptocoin_fanboi.rb']
   s.add_runtime_dependency('colored', '~> 1.2', '>=1.2')
+  s.add_runtime_dependency('chronic', '~> 0.10', '>=0.10.2')
   s.add_runtime_dependency('coinmarketcap', '~> 0.2', '>=0.2.4')
   s.add_runtime_dependency('table-formatter', '~> 0.4', '>=0.4.3') 
   s.signing_key = '../privatekeys/cryptocoin_fanboi.pem'
