@@ -139,7 +139,7 @@ class CryptocoinFanboi
   alias last_day today
   alias day today
 
-  def to_s(limit: nil, markdown: false)
+  def to_s(limit: 5, markdown: false)
 
     coins = fetch_coinlist(limit: limit).map do |coin|
 
@@ -147,6 +147,8 @@ class CryptocoinFanboi
 
     end    
 
+    puts 'coins: ' + coins.inspect if @debug
+    
     build_table coins, markdown: markdown
 
   end
@@ -193,12 +195,12 @@ class CryptocoinFanboi
     @all_coins = JSON.parse(Coinmarketcap.coins.body)\
         .map {|x| OpenStruct.new x}
     
-    a = if @watch.any? then
-      @all_coins.select {|x| @watch.include? x.symbol }
+    if @watch.any? then
+      return @all_coins.select {|x| @watch.include? x.symbol }
     elsif @ignore.any?
-      @all_coins.reject {|x| @ignore.include? x.symbol }
+      a = @all_coins.reject {|x| @ignore.include? x.symbol }
     else
-      @all_coins    
+      a = @all_coins    
     end    
 
     limit ? a.take(limit) : a
@@ -245,6 +247,7 @@ class CryptocoinFanboi
   end  
 
 end
+
 
 
 if __FILE__ == $0 then
