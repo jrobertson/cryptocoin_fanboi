@@ -122,7 +122,7 @@ class CryptocoinFanboi
   #
   def price(coin, raw_date)
     
-    date = Chronic.parse(raw_date).strftime("%Y%m%d")
+    date = Chronic.parse(raw_date.gsub('-',' ')).strftime("%Y%m%d")
     puts 'date: ' + date.inspect if @debug
     
     begin
