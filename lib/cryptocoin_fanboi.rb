@@ -54,9 +54,9 @@ class CryptocoinFanboi
     @fields = %w(rank name price_usd price_btc percent_change_1h 
           percent_change_24h percent_change_7d)
 
-    @year = Time.now.year.to_s          
+    @year = Time.now.year          
     @labels = %w(Rank Name USD BTC) + ['% 1hr:', '% 24hr:', 
-                                       '% 1 week:', '% ' + @year + ':']
+                                       '% 1 week:', '% ' + @year.to_s + ':']
     @coins = fetch_coinlist()
     
     # check for the local cache file containing a record of currency 
@@ -70,16 +70,19 @@ class CryptocoinFanboi
       h = Psych.load File.read(cache_filename)
       puts 'h.key.first: ' + h.keys.first.inspect if @debug
       puts '@year: ' + @year.inspect if @debug
-      @growth = (h.keys.first == @year) ? h[@year] : fetch_growth(@all_coins)
-      puts '@growth: ' + @growth.inspect if @debug
+      @coin_prices = (h.keys.first == @year) ? h[@year] : \
+          fetch_year_start_prices(@all_coins)
       
     else
       
       # fetch the currency prices from the start of the year
-      @growth = fetch_growth(@all_coins)      
-      File.write cache_filename, {@year => @growth}.to_yaml
+      @coin_prices = fetch_year_start_prices(@all_coins)
+      File.write cache_filename, {@year => @coin_prices}.to_yaml
       
     end
+    
+    @growth = fetch_growth(@coins, @coin_prices)
+    puts '@growth: ' + @growth.inspect if @debug    
     
   end
   
@@ -228,14 +231,12 @@ class CryptocoinFanboi
   end
 
   # fetch the currency prices from the start of the year 
-  #
-  def fetch_growth(coins)
-
-    puts 'fetching growth ...' if @debug
+  #  
+  def fetch_year_start_prices(coins)
     
     coins.inject({}) do |r, coin| 
 
-      day1 = @year + '0101'
+      day1 = @year.to_s + '0101'
       puts 'coin: ' + coin.name.inspect if @debug
       
       begin
@@ -248,9 +249,34 @@ class CryptocoinFanboi
 
       if a and a.any? then
         
-        latest_day, year_start = coin.price_usd.to_f, a[0][:close]
-        r.merge({coin.name => (100.0 / (year_start / 
-                                        (latest_day - year_start))).round(2)})
+        r.merge({coin.name => a[0][:close].to_f})
+      else
+        r
+      end
+      
+    end
+    
+  end
+
+  
+  # fetch the currency prices from the start of the year 
+  #
+  def fetch_growth(coins, coin_prices)
+
+    puts 'fetching growth ...' if @debug
+    puts 'coin_prices: ' + coin_prices.inspect if @debug
+    
+    coins.inject({}) do |r, coin| 
+
+      year_start_price = coin_prices[coin.name]
+      
+      if year_start_price then
+        
+        latest_day = coin.price_usd.to_f
+        puts "latest_day: %s  year_start: %s" % \
+            [latest_day, year_start_price] if @debug
+        r.merge({coin.name => (100.0 / (year_start_price / 
+                                   (latest_day - year_start_price))).round(2)})
       else
         r
       end
