@@ -44,9 +44,9 @@ class CryptocoinFanboi
   attr_accessor :colored
 
   def initialize(watch: [], ignore: [], 
-                 colored: true, debug: false)
+                 colored: true, debug: false, filepath: '.')
 
-    @colored, @debug = colored, debug
+    @colored, @debug, @filepath = colored, debug, filepath
     
     @watch= watch.map(&:upcase)
     @ignore = ignore.map(&:upcase)
@@ -62,7 +62,14 @@ class CryptocoinFanboi
     # check for the local cache file containing a record of currency 
     # prices from the start of the year
     
-    cache_filename = 'cryptocoin_fanboi.yaml'    
+    cache_filename = File.join(@filepath, 'cryptocoin_fanboi.yaml')
+    @historic_prices_file = File.join(@filepath, 'ccf_historic.yaml')
+    
+    @history_prices = if File.exists? @historic_prices_file then
+      Psych.load File.read(@historic_prices_file)
+    else
+      {}
+    end
     
     if File.exists? cache_filename then
       
@@ -128,14 +135,24 @@ class CryptocoinFanboi
     date = Chronic.parse(raw_date.gsub('-',' ')).strftime("%Y%m%d")
     puts 'date: ' + date.inspect if @debug
     
-    begin
-      
-      a = Coinmarketcap.get_historical_price(coin, date, date)
-      puts 'a: ' + a.inspect if @debug
-      r = a.first[:close]
-      
-    rescue
-      puts ($!).inspect if @debug
+    if @history_prices[coin] and @history_prices[coin][date] then
+      @history_prices[coin][date]
+    else
+      begin
+        
+        a = Coinmarketcap.get_historical_price(coin, date, date)
+        puts 'a: ' + a.inspect if @debug
+        r = a.first[:close]
+        
+        @history_prices[coin] ||= {}
+        @history_prices[coin][date] = r
+        File.write @historic_prices_file, @history_prices.to_yaml
+        
+        return r
+        
+      rescue
+        puts ($!).inspect if @debug
+      end
     end
     
   end
