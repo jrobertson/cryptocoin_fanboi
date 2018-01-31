@@ -63,6 +63,7 @@ class CryptocoinFanboi
     # prices from the start of the year
     
     cache_filename = File.join(@filepath, 'cryptocoin_fanboi.yaml')
+    puts 'cache_filename: ' + cache_filename.inspect if @debug
     @historic_prices_file = File.join(@filepath, 'ccf_historic.yaml')
     
     @history_prices = if File.exists? @historic_prices_file then
@@ -75,8 +76,12 @@ class CryptocoinFanboi
       
       #load the file
       h = Psych.load File.read(cache_filename)
-      puts 'h.key.first: ' + h.keys.first.inspect if @debug
-      puts '@year: ' + @year.inspect if @debug
+      
+      if @debug then
+        puts 'h.key.first: ' + h.keys.first.inspect 
+        puts '@year: ' + @year.inspect
+      end
+      
       @coin_prices = (h.keys.first == @year) ? h[@year] : \
           fetch_year_start_prices(@all_coins)
       
@@ -182,7 +187,7 @@ class CryptocoinFanboi
   def to_s(limit: 5, markdown: false)
 
     coins = fetch_coinlist(limit: limit).map do |coin|
-
+      puts 'coin: ' + coin.inspect if @debug
       @fields.map {|x| coin[x] }
 
     end    
@@ -197,10 +202,21 @@ class CryptocoinFanboi
   
   def build_table(a, markdown: markdown, labels: @labels)
         
+    if @debug then
+      puts 'inside build_table' 
+      puts 'a : ' + a.inspect
+      puts '@growth: ' + @growth.inspect
+    end
+    
     coins = a.map do |x|
-      @growth.has_key?(x[1]) ? x + [@growth[x[1]].to_s] : x
-    end    
-
+      @growth.has_key?(x[1]) ? x + [@growth[x[1]].to_s] : x + ['-']
+    end
+    
+    if @debug then
+      puts 'coins+growth: ' + coins.inspect    
+      puts 'before format_table'
+    end
+    
     format_table(coins, markdown: markdown, labels: @labels)
   end
   
@@ -211,6 +227,12 @@ class CryptocoinFanboi
   end  
   
   def format_table(source, markdown: markdown, labels: @labels)
+    
+    if @debug then
+      puts 'source: ' + source.inspect
+      puts 'labels: ' + labels.inspect
+    end
+    
     s = TableFormatter.new(source: source, labels: labels, markdown: markdown)\
         .display
     
@@ -280,8 +302,10 @@ class CryptocoinFanboi
   #
   def fetch_growth(coins, coin_prices)
 
-    puts 'fetching growth ...' if @debug
-    puts 'coin_prices: ' + coin_prices.inspect if @debug
+    if @debug then
+      puts 'fetching growth ...'
+      puts 'coin_prices: ' + coin_prices.inspect
+    end
     
     coins.inject({}) do |r, coin| 
 
