@@ -8,6 +8,8 @@ require 'colored'
 require 'coinmarketcap'
 require 'table-formatter'
 require 'rxfhelper'
+require 'rexle'
+require 'kramdown'
 
 
 =begin
@@ -116,7 +118,11 @@ class CryptocoinFanboi
   end
   
   def find(name)
-
+    
+    if @debug then
+      puts 'inside find: name: ' + name.inspect 
+      puts 'coins: ' + @coins.inspect
+    end
     coins.find {|coin| coin.name =~ /#{name}/i }    
 
   end
@@ -183,6 +189,20 @@ class CryptocoinFanboi
 
   alias last_day today
   alias day today
+  
+  def to_html()
+  
+    xpath = (5..8).map {|x| 'tbody/tr/td[' + x.to_s + ']' }.join(' | ')
+    doc = Rexle.new(Kramdown::Document.new(self.to_s(markdown:true)).to_html)
+    doc.root.xpath(xpath).each do |x|
+    
+      x.attributes['class'] = (x.text[0] == '-' ? 'negative' : 'positive')
+    
+    end
+    
+    doc.root.xml
+    
+  end
 
   def to_s(limit: 5, markdown: false)
 
@@ -236,7 +256,7 @@ class CryptocoinFanboi
     s = TableFormatter.new(source: source, labels: labels, markdown: markdown)\
         .display
     
-    return s if @colored == false
+    return s if @colored == false or markdown
     
     a = s.lines
     
