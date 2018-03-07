@@ -142,14 +142,29 @@ class CryptocoinFanboi
   # e.g.  price('tron', '8th September 2017') #=> 0.001427
   #
   def price(coin, raw_date)
-    
+  
     date = Chronic.parse(raw_date.gsub('-',' ')).strftime("%Y%m%d")
     puts 'date: ' + date.inspect if @debug
+      
+    # if date is today then return today's price
+    
+    if date == Date.today.strftime("%Y%m%d")
+    
+      r = Coinmarketcap.coin(coin)          
+      return r.parsed_response.first['price_usd'].to_f
+      
+    end
+    
     
     if @history_prices[coin] and @history_prices[coin][date] then
       @history_prices[coin][date]
     else
       begin
+        
+        if @debug then
+          puts 'coin: ' + coin.inspect 
+          puts 'date: ' + date.inspect
+        end
         
         a = Coinmarketcap.get_historical_price(coin, date, date)
         puts 'a: ' + a.inspect if @debug
