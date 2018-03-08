@@ -10,6 +10,7 @@ require 'table-formatter'
 require 'rxfhelper'
 require 'rexle'
 require 'kramdown'
+require 'justexchangerates'
 
 
 =begin
@@ -184,6 +185,18 @@ class CryptocoinFanboi
         puts ($!).inspect if @debug
       end
     end
+    
+  end
+  
+  # returns an array of the prices of Bitcoin in various currencies
+  #
+  def rates(coin='Bitcoin', currencies: %w(EUR GBP))
+  
+    jeg = JustExchangeRates.new(base: 'USD')
+    usd = self.price(coin).round(2)
+    ([:USD] + currencies.map(&:to_sym)).zip(
+      [usd, *currencies.map {|currency| (usd * jeg.rate(currency)).round(2) }]
+      ).to_h
     
   end
 
