@@ -104,6 +104,10 @@ class CryptocoinFanboi
     @coins.map {|x| "%s (%s)" % [x['name'], x['symbol']] }
   end
   
+  def coin(name)
+    self.find(name)
+  end
+  
   def coins()
     @coins.map {|x| OpenStruct.new(x) }
   end
@@ -141,7 +145,9 @@ class CryptocoinFanboi
   # returns closing price in dollars
   # e.g.  price('tron', '8th September 2017') #=> 0.001427
   #
-  def price(coin, raw_date)
+  def price(coin, raw_date=nil)
+  
+    return self.coin(coin).price_usd.to_f if raw_date.nil?
   
     date = Chronic.parse(raw_date.gsub('-',' ')).strftime("%Y%m%d")
     puts 'date: ' + date.inspect if @debug
@@ -149,10 +155,8 @@ class CryptocoinFanboi
     # if date is today then return today's price
     
     if date == Date.today.strftime("%Y%m%d")
-    
-      r = Coinmarketcap.coin(coin)          
-      return r.parsed_response.first['price_usd'].to_f
-      
+      puts 'same day' if @debug
+      return self.coin(coin).price_usd.to_f      
     end
     
     
