@@ -173,7 +173,8 @@ class CryptocoinFanboi
         
         a = Coinmarketcap.get_historical_price(coin, date, date)
         puts 'a: ' + a.inspect if @debug
-        r = a.first[:close]
+        
+        r = a.any? ? a.first[:close] : self.coin(coin).price_usd.to_f  
         
         @history_prices[coin] ||= {}
         @history_prices[coin][date] = r
