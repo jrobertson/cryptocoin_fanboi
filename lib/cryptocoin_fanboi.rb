@@ -41,7 +41,24 @@ require 'justexchangerates'
 
 =end
 
+module Colour
+
+  def colourise(x)
+
+    return x if x.to_s.strip.empty?
+    
+    s3 = (x.to_s.sub(/[\d\.\-]+/) {|s2| "%.2f" % s2})
+    s = s3[(s3.length - x.to_s.length)..-1]
+    
+    s[/^ *-/] ? s.red : s.green
+  end
+  
+  alias c colourise 
+  
+end
+
 class CryptocoinFanboi
+  include Colour
   
   attr_reader :coins, :all_coins
   attr_accessor :colored
@@ -101,8 +118,45 @@ class CryptocoinFanboi
     
   end
   
+  # best coin this year so far
+  #
+  def best_coin(default_list=[])
+
+    list = if default_list.empty? then
+      self.coin_names(limit: 5)
+    else
+      default_list
+    end
+    
+    a2 = list.map {|x| [x, btc_gain(x)]}
+    a2.max_by {|x| x[1].last}  
+  end
+  
+  def btc_gain(coin)
+
+    a = prices_this_year(coin)
+    r = a.min_by {|x | x[1][:btc_price]}
+    [r, btc_price(coin) - r[1][:btc_price]]
+    
+  end
+  
+  
+  def btc_price(coin, date=nil)
+  
+    usd = self.price(coin, date)    
+    puts 'usd: ' + usd.inspect if @debug
+    btc = self.price('bitcoin', date)
+    (usd / btc)   
+  end
+  
   def coin_abbreviations()
     @coins.map {|x| "%s (%s)" % [x['name'], x['symbol']] }
+  end
+  
+  alias abbreviations coin_abbreviations  
+  
+  def coin_names(limit: 10)
+    @coins.take(limit).map {|x| x['name']}
   end
   
   def coin(name)
@@ -113,7 +167,21 @@ class CryptocoinFanboi
     @coins.map {|x| OpenStruct.new(x) }
   end
   
-  alias abbreviations coin_abbreviations
+  def date_range(raw_d1, raw_d2)
+  
+    d1, d2 = [raw_d1, raw_d2].map do |x|
+      if x.is_a? Date then
+        x
+      else
+        Chronic.parse(x.gsub('-',' '), :context => :past).to_date
+      end
+    end
+    
+    (d1..d2).each do |date|
+      yield(self, date.strftime("%d %B %Y"))
+    end
+    
+  end
 
   def inspect()
     
@@ -146,11 +214,18 @@ class CryptocoinFanboi
   # returns closing price in dollars
   # e.g.  price('tron', '8th September 2017') #=> 0.001427
   #
-  def price(coin, raw_date=nil)
+  def price(raw_coin, raw_date=nil)
   
+    coin = raw_coin.downcase.split.map(&:capitalize).join(' ')
+    
     return self.coin(coin).price_usd.to_f if raw_date.nil?
-  
-    date = Chronic.parse(raw_date.gsub('-',' ')).strftime("%Y%m%d")
+    puts 'raw_date: ' + raw_date.inspect if @debug
+    
+    date = if raw_date.is_a? Date then
+      raw_date.strftime("%Y%m%d")
+    else
+      Chronic.parse(raw_date.gsub('-',' ')).strftime("%Y%m%d")
+    end
     puts 'date: ' + date.inspect if @debug
       
     # if date is today then return today's price
@@ -171,7 +246,7 @@ class CryptocoinFanboi
           puts 'date: ' + date.inspect
         end
         
-        a = Coinmarketcap.get_historical_price(coin, date, date)
+        a = Coinmarketcap.get_historical_price(coin.gsub(/ /,'-'), date, date)
         puts 'a: ' + a.inspect if @debug
         
         r = a.any? ? a.first[:close] : self.coin(coin).price_usd.to_f  
@@ -187,6 +262,15 @@ class CryptocoinFanboi
       end
     end
     
+  end
+  
+  def prices_this_year(coin)
+  
+    (Date.parse('1 Jan')..Date.today).map do |date|
+      
+      [date, btc_price: btc_price(coin,date), usd_price: price(coin,date)]
+
+    end  
   end
   
   # returns an array of the prices of Bitcoin in various currencies
@@ -278,6 +362,7 @@ class CryptocoinFanboi
     format_table(a, markdown: markdown, labels: @labels[0..-2])
 
   end  
+   
   
   def format_table(source, markdown: markdown, labels: @labels)
     
@@ -297,7 +382,7 @@ class CryptocoinFanboi
       
       fields = line.split('|')   
       
-      a2 = fields[5..-2].map {|x| x[/^ +-/] ? x.red : x.green }
+      a2 = fields[5..-2].map {|x| c(x) }
       (fields[0..4] + a2 + ["\n"]).join('|')  
 
     end
