@@ -44,11 +44,11 @@ require 'justexchangerates'
 module Colour
 
   def colourise(x)
-
-    return x if x.to_s.strip.empty?
+  
+    return x if x.to_s.strip.empty? or @colored == false
     
     s3 = (x.to_s.sub(/[\d\.\-]+/) {|s2| "%.2f" % s2})
-    s = s3[(s3.length - x.to_s.length)..-1]
+    s = s3.length == x.to_s.length ? s3 : s3.sub(/ /,'')
     
     s[/^ *-/] ? s.red : s.green
   end
@@ -72,12 +72,12 @@ class CryptocoinFanboi
     @ignore = ignore.map(&:upcase)
         
     @fields = %w(rank name price_usd price_btc percent_change_1h 
-          percent_change_24h percent_change_7d)
+          percent_change_24h percent_change_7d percent_change_year)
 
     @year = Time.now.year          
     @labels = %w(Rank Name USD BTC) + ['% 1hr:', '% 24hr:', 
                                        '% 1 week:', '% ' + @year.to_s + ':']
-    @coins = fetch_coinlist()
+    coins = fetch_coinlist()
     
     # check for the local cache file containing a record of currency 
     # prices from the start of the year
@@ -113,8 +113,11 @@ class CryptocoinFanboi
       
     end
     
-    @growth = fetch_growth(@coins, @coin_prices)
-    puts '@growth: ' + @growth.inspect if @debug    
+    @growth = fetch_growth(coins, @coin_prices)
+    puts '@growth: ' + @growth.inspect if @debug
+    
+    @coins = add_year_growth coins
+    
     
   end
   
@@ -204,7 +207,7 @@ class CryptocoinFanboi
   #  
   def now(limit: 5, markdown: false)
     
-    build_table2 top_coins('1h', limit: limit), markdown: markdown
+    build_table top_coins('1h', limit: limit), markdown: markdown
     
   end    
   
@@ -290,17 +293,28 @@ class CryptocoinFanboi
   def this_week(limit: 5, markdown: false)    
     
     coins =  top_coins(limit: limit)
-    build_table2 coins, markdown: markdown
+    build_table coins, markdown: markdown
 
   end
   
   alias week this_week
   
+  # View the coins with the largest gains this 
+  # year (since the start of the year)
+  #  
+  def this_year(limit: 5, markdown: false)    
+    
+    build_table top_coins('year', limit: limit), markdown: markdown
+
+  end
+  
+  alias year this_year
+  
   # View the coins with the largest gains today (past 24 hours)
   #
   def today(limit: 5, markdown: false)
     
-    build_table2 top_coins('24h', limit: limit), markdown: markdown
+    build_table top_coins('24h', limit: limit), markdown: markdown
     
   end
 
@@ -323,19 +337,46 @@ class CryptocoinFanboi
 
   def to_s(limit: 5, markdown: false)
 
-    coins = fetch_coinlist(limit: limit).map do |coin|
+    coins = (fetch_coinlist(limit: limit))  
+    
+    coins2 = add_year_growth(coins)
+    
+    puts 'coins2: ' + coins2.inspect
+    
+    coins3 = coins2.map do |coin|
+      
       puts 'coin: ' + coin.inspect if @debug
       @fields.map {|x| coin[x] }
 
-    end    
+    end  
 
-    puts 'coins: ' + coins.inspect if @debug
-    
-    build_table coins, markdown: markdown
+    puts 'coins3: ' + coins3.inspect if @debug
+
+
+    build_table coins3, markdown: markdown
 
   end
 
   private
+
+  # adds growth from the start of the year
+  #
+  def add_year_growth(coins)
+    
+    coins.each do |x|
+      
+      puts 'x.name: ' + x.name if @debug
+      
+      if @growth.has_key?(x.name) then
+        x.percent_change_year = @growth[x.name].to_s
+      else
+        x.percent_change_year = '-'
+      end
+    end    
+    
+    coins
+    
+  end
   
   def build_table(a, markdown: markdown, labels: @labels)
         
@@ -344,25 +385,9 @@ class CryptocoinFanboi
       puts 'a : ' + a.inspect
       puts '@growth: ' + @growth.inspect
     end
-    
-    coins = a.map do |x|
-      @growth.has_key?(x[1]) ? x + [@growth[x[1]].to_s] : x + ['-']
-    end
-    
-    if @debug then
-      puts 'coins+growth: ' + coins.inspect    
-      puts 'before format_table'
-    end
-    
-    format_table(coins, markdown: markdown, labels: @labels)
-  end
-  
-  def build_table2(a, markdown: markdown, labels: @labels)
-    
-    format_table(a, markdown: markdown, labels: @labels[0..-2])
-
+        
+    format_table(a, markdown: markdown, labels: @labels)
   end  
-   
   
   def format_table(source, markdown: markdown, labels: @labels)
     

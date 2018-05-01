@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'cryptocoin_fanboi'
-  s.version = '0.5.1'
+  s.version = '0.5.2'
   s.summary = 'A coinmarketcap wrapper which makes it convenient to display ' +
       'the top 5 cryptocurrencies as listed on https://coinmarketcap.com.'
   s.authors = ['James Robertson']
