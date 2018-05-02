@@ -207,9 +207,9 @@ class CryptocoinFanboi
 
   # View the coins with the largest gains in the past hour
   #  
-  def now(limit: 5, markdown: false)
+  def now(limit: 5, markdown: false, rank: :top)
     
-    build_table top_coins('1h', limit: limit), markdown: markdown
+    build_table sort_coins('1h', limit: limit, rank: rank), markdown: markdown
     
   end    
   
@@ -292,9 +292,9 @@ class CryptocoinFanboi
 
   # View the coins with the largest gains this week (past 7 days)
   #  
-  def this_week(limit: 5, markdown: false)    
+  def this_week(limit: 5, markdown: false, rank: :top)    
     
-    coins =  top_coins(limit: limit)
+    coins =  sort_coins(limit: limit, rank: rank)
     build_table coins, markdown: markdown
 
   end
@@ -304,9 +304,9 @@ class CryptocoinFanboi
   # View the coins with the largest gains this 
   # year (since the start of the year)
   #  
-  def this_year(limit: 5, markdown: false)    
+  def this_year(limit: 5, markdown: false, rank: :top)    
     
-    build_table top_coins('year', limit: limit), markdown: markdown
+    build_table sort_coins('year', limit: limit, rank: rank), markdown: markdown
 
   end
   
@@ -314,9 +314,9 @@ class CryptocoinFanboi
   
   # View the coins with the largest gains today (past 24 hours)
   #
-  def today(limit: 5, markdown: false)
+  def today(limit: 5, markdown: false, rank: :top)
     
-    build_table top_coins('24h', limit: limit), markdown: markdown
+    build_table sort_coins('24h', limit: limit, rank: rank), markdown: markdown
     
   end
 
@@ -337,7 +337,7 @@ class CryptocoinFanboi
     
   end
 
-  def to_s(limit: 5, markdown: false)
+  def to_s(limit: 5, markdown: false, rank: :top)
 
     coins = (fetch_coinlist(limit: limit))  
     
@@ -491,10 +491,11 @@ class CryptocoinFanboi
     
   end
   
-  def top_coins(period='7d', limit: 5)
+  def sort_coins(period='7d', limit: 5, rank: :top)
     
-    a = @coins.sort_by {|x| -x['percent_change_' + period].to_f}.take(limit)
-    a.map {|coin| @fields.map {|key| coin[key] }}
+    a = @coins.sort_by {|x| -x['percent_change_' + period].to_f}
+    a.reverse! if rank == :bottom
+    a.take(limit).map {|coin| @fields.map {|key| coin[key] }}
     
   end  
 
