@@ -144,9 +144,11 @@ class CryptocoinFanboi
   end
   
   
-  def btc_price(coin, date=nil)
+  def btc_price(coin='Bitcoin', date=nil)
   
     usd = self.price(coin, date)    
+    return usd if coin == 'Bitcoin'
+    
     puts 'usd: ' + usd.inspect if @debug
     btc = self.price('bitcoin', date)
     (usd / btc)   
