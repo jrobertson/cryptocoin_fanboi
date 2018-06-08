@@ -63,10 +63,11 @@ class CryptocoinFanboi
   attr_reader :coins, :all_coins
   attr_accessor :colored
 
-  def initialize(watch: [], ignore: [], 
-                 colored: true, debug: false, filepath: '.')
+  def initialize(watch: [], ignore: [], colored: true, 
+                 debug: false, filepath: '.', exchangerate_key: nil)
 
-    @colored, @debug, @filepath = colored, debug, filepath
+    @colored, @debug, @filepath, @exchangerate_key = colored, debug, \
+        filepath, exchangerate_key
     
     @watch= watch.map(&:upcase)
     @ignore = ignore.map(&:upcase)
@@ -190,7 +191,8 @@ class CryptocoinFanboi
 
   def inspect()
     
-    c = @coins.inspect.length > 50 ? @coins.inspect[0..50] + '...' : @coins.inspect
+    c = @coins.inspect.length > 50 ? \
+        @coins.inspect[0..50] + '...' : @coins.inspect
     "#<%s:%s @coins=\"%s\ @all_coins=\"...\">" % [self.class, 
                                                   self.object_id, c]
   end
@@ -282,7 +284,8 @@ class CryptocoinFanboi
   #
   def rates(coin='Bitcoin', currencies: %w(EUR GBP))
   
-    jeg = JustExchangeRates.new(base: 'USD')
+    jeg = JustExchangeRates.new(base: 'USD', app_id: @exchangerate_key, 
+                                debug: @debug)
     usd = self.price(coin).round(2)
     ([:USD] + currencies.map(&:to_sym)).zip(
       [usd, *currencies.map {|currency| (usd * jeg.rate(currency)).round(2) }]
