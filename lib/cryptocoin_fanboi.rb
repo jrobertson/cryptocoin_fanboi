@@ -47,7 +47,7 @@ module Colour
   
     return x if x.to_s.strip.empty? or @colored == false
     
-    s3 = (x.to_s.sub(/[\d\.\-]+/) {|s2| "%.2f" % s2})
+    s3 = (x.to_s.sub(/[\d\.\-]+/) {|s2| "%.2f" % s2.to_f})
     s = s3.length == x.to_s.length ? s3 : s3.sub(/ /,'')
     
     s[/^ *-/] ? s.red : s.green
@@ -59,25 +59,32 @@ end
 
 class CryptocoinFanboi
   include Colour
+  using ColouredText
   
   attr_reader :coins, :all_coins
   attr_accessor :colored
 
-  def initialize(watch: [], ignore: [], colored: true, 
-                 debug: false, filepath: '.', exchangerate_key: nil)
+  def initialize(watch: [], ignore: [], colored: true, debug: false, 
+                 filepath: '.', exchangerate_key: nil, cmc_apikey: nil)
 
-    @colored, @debug, @filepath, @exchangerate_key = colored, debug, \
-        filepath, exchangerate_key
+    @colored, @debug, @filepath = colored, debug, filepath
+    @exchangerate_key, @cmc_apikey = exchangerate_key, cmc_apikey
     
     @watch= watch.map(&:upcase)
     @ignore = ignore.map(&:upcase)
         
-    @fields = %w(rank name price_usd price_btc percent_change_1h 
-          percent_change_24h percent_change_7d percent_change_year)
+    
+    #@fields = %w(rank name price_usd price_btc percent_change_1h 
+    #      percent_change_24h percent_change_7d percent_change_year)    
+              
 
+    @fields = %w(price percent_change_1h percent_change_24h percent_change_7d)          
+          
     @year = Time.now.year          
-    @labels = %w(Rank Name USD BTC) + ['% 1hr:', '% 24hr:', 
-                                       '% 1 week:', '% ' + @year.to_s + ':']
+    #@labels = %w(Rank Name USD BTC) + ['% 1hr:', '% 24hr:', 
+    #                                   '% 1 week:', '% ' + @year.to_s + ':']
+    @labels = %w(Rank Name USD) + ['% 1hr:', '% 24hr:', 
+                                       '% 1 week:']    
     coins = fetch_coinlist()
     
     # check for the local cache file containing a record of currency 
@@ -203,7 +210,8 @@ class CryptocoinFanboi
       puts 'inside find: name: ' + name.inspect 
       puts 'coins: ' + @coins.inspect
     end
-    coins.find {|coin| coin.name =~ /#{name}/i }    
+    
+    coins.find {|coin| coin.name =~ /#{name}/i or coin.symbol =~ /#{name}/i} 
 
   end
 
@@ -225,7 +233,7 @@ class CryptocoinFanboi
   
     coin = raw_coin.downcase.split.map(&:capitalize).join(' ')
     
-    return self.coin(coin).price_usd.to_f if raw_date.nil?
+    return self.coin(coin).quote['USD']['price'].to_f if raw_date.nil?
     puts 'raw_date: ' + raw_date.inspect if @debug
     
     date = if raw_date.is_a? Date then
@@ -239,7 +247,7 @@ class CryptocoinFanboi
     
     if date == Date.today.strftime("%Y%m%d")
       puts 'same day' if @debug
-      return self.coin(coin).price_usd.to_f      
+      return self.coin(coin).quote['USD']['price'].to_f      
     end
     
     
@@ -256,7 +264,7 @@ class CryptocoinFanboi
         a = Coinmarketcap.get_historical_price(coin.gsub(/ /,'-'), date, date)
         puts 'a: ' + a.inspect if @debug
         
-        r = a.any? ? a.first[:close] : self.coin(coin).price_usd.to_f  
+        r = a.any? ? a.first[:close] : self.coin(coin).quote['USD']['price'].to_f  
         
         @history_prices[coin] ||= {}
         @history_prices[coin][date] = r
@@ -346,16 +354,19 @@ class CryptocoinFanboi
     
     coins2 = add_year_growth(coins)
     
-    puts 'coins2: ' + coins2.inspect
+    puts ('coins2: ' + coins2.inspect).debug if @debg
     
     coins3 = coins2.map do |coin|
       
-      puts 'coin: ' + coin.inspect if @debug
-      @fields.map {|x| coin[x] }
-
+      puts ('coin: ' + coin.inspect).debug if @debug
+      a2 = %w(cmc_rank name).map {|x| coin[x]} 
+      puts 'a2: ' + a2.inspect
+      a3 = @fields.map {|x| coin['quote']['USD'][x] }
+      puts 'a3: ' + a3.inspect
+      a2 + a3
     end  
 
-    puts 'coins3: ' + coins3.inspect if @debug
+    puts ('coins3: ' + coins3.inspect).debug if @debug
 
 
     build_table coins3, markdown: markdown
@@ -422,7 +433,8 @@ class CryptocoinFanboi
 
   def fetch_coinlist(limit: nil)
 
-    @all_coins = JSON.parse(Coinmarketcap.coins.body)\
+    body = CoinmarketcapLite.new(apikey: @cmc_apikey).coins.body
+    @all_coins = JSON.parse(body)['data']\
         .map {|x| OpenStruct.new x}
     
     if @watch.any? then
@@ -481,7 +493,7 @@ class CryptocoinFanboi
       
       if year_start_price then
         
-        latest_day = coin.price_usd.to_f
+        latest_day = coin.quote['USD']['price'].to_f
         puts "latest_day: %s  year_start: %s" % \
             [latest_day, year_start_price] if @debug
         r.merge({coin.name => (100.0 / (year_start_price / 
