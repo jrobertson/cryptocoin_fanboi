@@ -11,7 +11,21 @@ require 'rxfhelper'
 require 'rexle'
 require 'kramdown'
 require 'justexchangerates'
+require 'coinquery'
 
+# 02-May 2021 ----
+#
+# public methods tested:
+#
+# * this_day
+# * this_hour
+# * this_week
+# * this_month
+# * past_60d
+# * past_90d
+
+# note: In order to use this gem you will need at least a 
+#       valid "basic plan" Coinmarket API key.
 
 =begin
 
@@ -70,6 +84,8 @@ class CryptocoinFanboi
     @colored, @debug, @filepath = colored, debug, filepath
     @exchangerate_key, @cmc_apikey = exchangerate_key, cmc_apikey
     
+    @cq = CoinQuery.new(dym: false, timeout: 7, debug: debug)
+    
     @watch= watch.map(&:upcase)
     @ignore = ignore.map(&:upcase)
         
@@ -77,16 +93,24 @@ class CryptocoinFanboi
     #@fields = %w(rank name price_usd price_btc percent_change_1h 
     #      percent_change_24h percent_change_7d percent_change_year)    
               
-
-    @fields = %w(price percent_change_1h percent_change_24h percent_change_7d)          
+    pct_fields = %w(1h 24h 7d 30d 60d 90d).map {|x| 'percent_change_' + x}
+    @fields = %w(price) + pct_fields
           
     @year = Time.now.year          
     #@labels = %w(Rank Name USD BTC) + ['% 1hr:', '% 24hr:', 
     #                                   '% 1 week:', '% ' + @year.to_s + ':']
     @labels = %w(Rank Name USD) + ['% 1hr:', '% 24hr:', 
-                                       '% 1 week:']    
-    coins = fetch_coinlist()
+                                '% 7d:','% 30d:','% 60d:','% 90d:']
     
+    puts 'about to fetch coinlist'.info if @debug
+    @coins = coins = fetch_coinlist()
+    puts 'coinlist fetched'.info if @debug
+   
+    # The following code is commented out because it's non-essential to 
+    # returning the current coin prices. It was intended to show yearly 
+    # percentage returns
+    
+=begin    
     # check for the local cache file containing a record of currency 
     # prices from the start of the year
     
@@ -125,7 +149,7 @@ class CryptocoinFanboi
     puts '@growth: ' + @growth.inspect if @debug
     
     @coins = add_year_growth coins
-    
+=end    
     
   end
   
@@ -239,13 +263,13 @@ class CryptocoinFanboi
     date = if raw_date.is_a? Date then
       raw_date.strftime("%Y%m%d")
     else
-      Chronic.parse(raw_date.gsub('-',' ')).strftime("%Y%m%d")
+      Chronic.parse(raw_date.gsub('-',' ')).strftime("%d%m%Y")
     end
     puts 'date: ' + date.inspect if @debug
       
     # if date is today then return today's price
     
-    if date == Date.today.strftime("%Y%m%d")
+    if date == Date.today.strftime("%d%m%Y")
       puts 'same day' if @debug
       return self.coin(coin).quote['USD']['price'].to_f      
     end
@@ -261,11 +285,12 @@ class CryptocoinFanboi
           puts 'date: ' + date.inspect
         end
         
-        a = Coinmarketcap.get_historical_price(coin.gsub(/ /,'-'), date, date)
-        puts 'a: ' + a.inspect if @debug
+        #a = Coinmarketcap.get_historical_price(coin.gsub(/ /,'-'), date, date)
+        #puts 'a: ' + a.inspect if @debug        
         
-        r = a.any? ? a.first[:close] : self.coin(coin).quote['USD']['price'].to_f  
-        
+        #r = a.any? ? a.first[:close] : self.coin(coin).quote['USD']['price'].to_f  
+        price = @cq.historical_price coin, date
+        r = price ? price.to_f : self.coin(coin).quote['USD']['price'].to_f  
         @history_prices[coin] ||= {}
         @history_prices[coin][date] = r
         File.write @historic_prices_file, @history_prices.to_yaml
@@ -278,6 +303,21 @@ class CryptocoinFanboi
     end
     
   end
+  
+  def past_60d(limit: 5, markdown: false, rank: :top)    
+    
+    coins =  sort_coins('60d', limit: limit, rank: rank)
+    build_table coins, markdown: markdown
+    
+  end
+  
+  def past_90d(limit: 5, markdown: false, rank: :top)    
+    
+    coins =  sort_coins('90d', limit: limit, rank: rank)
+    build_table coins, markdown: markdown
+    
+  end
+    
   
   def prices_this_year(coin)
   
@@ -305,12 +345,25 @@ class CryptocoinFanboi
   #  
   def this_week(limit: 5, markdown: false, rank: :top)    
     
-    coins =  sort_coins(limit: limit, rank: rank)
+    coins =  sort_coins('7d', limit: limit, rank: rank)
     build_table coins, markdown: markdown
 
   end
   
   alias week this_week
+  
+  # View the coins with the largest gains this week (past 7 days)
+  #  
+  def this_month(limit: 5, markdown: false, rank: :top)    
+    
+    puts 'inside this_mponth'.info if @debug
+    coins =  sort_coins('30d', limit: limit, rank: rank)
+    build_table coins, markdown: markdown
+
+  end
+  
+  alias month this_month
+  
   
   # View the coins with the largest gains this 
   # year (since the start of the year)
@@ -361,7 +414,7 @@ class CryptocoinFanboi
       puts ('coin: ' + coin.inspect).debug if @debug
       a2 = %w(cmc_rank name).map {|x| coin[x]} 
       puts 'a2: ' + a2.inspect
-      a3 = @fields.map {|x| coin['quote']['USD'][x] }
+      a3 = @fields.map {|x| coin['quote']['USD'][x].to_f.round(2) }
       puts 'a3: ' + a3.inspect
       a2 + a3
     end  
@@ -412,8 +465,8 @@ class CryptocoinFanboi
       puts 'labels: ' + labels.inspect
     end
     
-    s = TableFormatter.new(source: source, labels: labels, markdown: markdown)\
-        .display
+    s = TableFormatter.new(source: source, labels: labels, divider: '|', 
+                           markdown: markdown).display
     
     return s if @colored == false or markdown
     
@@ -423,8 +476,9 @@ class CryptocoinFanboi
       
       fields = line.split('|')   
       
-      a2 = fields[5..-2].map {|x| c(x) }
-      (fields[0..4] + a2 + ["\n"]).join('|')  
+      a2 = fields[4..-2].map {|x| c(x) }
+      puts 'at: ' + a2.inspect if @debug
+      (fields[0..3] + a2 + ["\n"]).join('|')  
 
     end
     
@@ -455,20 +509,22 @@ class CryptocoinFanboi
     
     coins.inject({}) do |r, coin| 
 
-      day1 = @year.to_s + '0101'
+      day1 = '01-01-' + @year.to_s
       puts 'coin: ' + coin.name.inspect if @debug
       
       begin
         
-        a = Coinmarketcap.get_historical_price(coin.name.gsub(/ /,'-'), 
-                                               day1, day1)
+        #a = Coinmarketcap.get_historical_price(coin.name.gsub(/ /,'-'), 
+        #                                       day1, day1)
+        price = @cq.historical_price coin.symbol, day1
+        
       rescue
         puts 'warning : ' + coin.name.inspect + ' ' + ($!).inspect
       end
 
-      if a and a.any? then
+      if price then
         
-        r.merge({coin.name => a[0][:close].to_f})
+        r.merge({coin.name => price.to_f})
       else
         r
       end
@@ -508,9 +564,14 @@ class CryptocoinFanboi
   
   def sort_coins(period='7d', limit: 5, rank: :top)
     
-    a = @coins.sort_by {|x| -x['percent_change_' + period].to_f}
+    puts 'sorting coins ...'.info if @debug
+    puts '@coins[0]: ' + @coins[0].inspect
+    
+    a = @coins.sort_by {|x| -x.quote['USD']['percent_change_' + period].to_f}
     a.reverse! if rank == :bottom
-    a.take(limit).map {|coin| @fields.map {|key| coin[key] }}
+    a.take(limit).map do |coin|
+      [coin.cmc_rank, coin.name] + @fields.map {|key| coin.quote['USD'][key].round(2) }
+    end
     
   end  
 
