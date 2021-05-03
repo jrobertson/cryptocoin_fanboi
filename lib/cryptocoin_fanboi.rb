@@ -3,6 +3,7 @@
 # file: cryptocoin_fanboi.rb
 
 
+require 'excon'
 require 'psych'
 require 'colored'
 require 'coinmarketcap'
@@ -386,6 +387,16 @@ class CryptocoinFanboi
 
   alias last_day today
   alias day today
+  
+  def total_market_cap()
+
+    url = 'https://api.coin360.com/global/latest'
+    response = Excon.get(url)
+    h = JSON.parse(response.body)
+    '$' + h["total_market_cap"].round.to_s.reverse.gsub(/...(?=.)/,'\&,')\
+        .reverse
+
+  end
   
   def to_html()
   
