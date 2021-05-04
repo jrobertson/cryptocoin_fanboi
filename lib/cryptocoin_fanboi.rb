@@ -6,7 +6,7 @@
 require 'excon'
 require 'psych'
 require 'colored'
-require 'coinmarketcap'
+require 'coinmarketcap_lite'
 require 'table-formatter'
 require 'rxfhelper'
 require 'rexle'
@@ -14,6 +14,7 @@ require 'kramdown'
 require 'justexchangerates'
 require 'coinquery'
 require 'coin360api21'
+require 'remote_dwsregistry'
 
 # 02-May 2021 ----
 #
@@ -85,7 +86,7 @@ class CryptocoinFanboi
 
     @colored, @debug, @filepath = colored, debug, filepath
     @exchangerate_key, @cmc_apikey = exchangerate_key, cmc_apikey
-    
+    puts 'before coinquery'
     @cq = CoinQuery.new(dym: false, timeout: 7, debug: debug)
     
     @watch= watch.map(&:upcase)
@@ -584,6 +585,27 @@ class CryptocoinFanboi
     
   end  
 
+end
+
+class CryptocoinFanboiPlus < CryptocoinFanboi
+
+  def initialize(reg_domain, watch: [], ignore: [], colored: true, debug: false, 
+                 filepath: '.')          
+
+    reg = RemoteDwsRegistry.new domain: reg_domain
+    
+    exchangerate_key = JustExchangeRatesPlus.fetch_app_id(reg)
+    puts 'exchangerate_key:'  + exchangerate_key.inspect if debug
+    
+    cmc_apikey = CoinmarketcapLitePlus.fetch_apikey(reg)
+    puts 'cmc_apikey: ' + cmc_apikey.inspect if debug
+
+    super(watch: watch, ignore: ignore, colored: colored, debug: debug, 
+          filepath: filepath, exchangerate_key: exchangerate_key, 
+          cmc_apikey: cmc_apikey)
+    
+  end
+  
 end
 
 
