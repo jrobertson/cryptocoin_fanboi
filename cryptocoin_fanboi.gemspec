@@ -1,6 +1,6 @@
 Gem::Specification.new do |s|
   s.name = 'cryptocoin_fanboi'
-  s.version = '0.7.1'
+  s.version = '0.7.2'
   s.summary = 'A coinmarketcap wrapper which makes it convenient to display ' +
       'the top 5 cryptocurrencies as listed on https://coinmarketcap.com.'
   s.authors = ['James Robertson']
@@ -11,6 +11,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency('kramdown', '~> 2.1', '>=2.1.0') 
   s.add_runtime_dependency('justexchangerates', '~> 0.3', '>=0.3.4')
   s.add_runtime_dependency('coinquery', '~> 0.2', '>=0.2.0')
+  s.add_runtime_dependency('coin360api21', '~> 0.2', '>=0.2.0')
   s.signing_key = '../privatekeys/cryptocoin_fanboi.pem'
   s.cert_chain  = ['gem-public_cert.pem']
   s.license = 'MIT'

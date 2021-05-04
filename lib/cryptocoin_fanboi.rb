@@ -13,6 +13,7 @@ require 'rexle'
 require 'kramdown'
 require 'justexchangerates'
 require 'coinquery'
+require 'coin360api21'
 
 # 02-May 2021 ----
 #
@@ -390,11 +391,8 @@ class CryptocoinFanboi
   
   def total_market_cap()
 
-    url = 'https://api.coin360.com/global/latest'
-    response = Excon.get(url)
-    h = JSON.parse(response.body)
-    '$' + h["total_market_cap"].round.to_s.reverse.gsub(/...(?=.)/,'\&,')\
-        .reverse
+    '$' + Coin360Api21::Global.new.latest.total_market_cap.round.to_s\
+        .reverse.gsub(/...(?=.)/,'\&,').reverse
 
   end
   
