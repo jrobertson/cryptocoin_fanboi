@@ -497,8 +497,8 @@ class CryptocoinFanboi
 
   def fetch_coinlist(limit: nil)
 
-    body = CoinmarketcapLite.new(apikey: @cmc_apikey).coins.body
-    @all_coins = JSON.parse(body)['data']\
+    body = CoinmarketcapLite.new(apikey: @cmc_apikey).coins
+    @all_coins = body['data']\
         .map {|x| OpenStruct.new x}
     
     if @watch.any? then
@@ -589,10 +589,14 @@ end
 
 class CryptocoinFanboiPlus < CryptocoinFanboi
 
-  def initialize(reg_domain, watch: [], ignore: [], colored: true, debug: false, 
+  def initialize(regx, watch: [], ignore: [], colored: true, debug: false, 
                  filepath: '.')          
 
-    reg = RemoteDwsRegistry.new domain: reg_domain
+    reg = if regx.is_a? String then
+      RemoteDwsRegistry.new domain: regx
+    else
+      regx
+    end
     
     exchangerate_key = JustExchangeRatesPlus.fetch_app_id(reg)
     puts 'exchangerate_key:'  + exchangerate_key.inspect if debug
